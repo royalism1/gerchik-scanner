@@ -64,8 +64,8 @@ elif mode == "deep":
         b = json.load(open(os.path.join(ROOT, "results", D, "bars", t + ".json"), encoding="utf-8"))
         r = {k: v for k, v in c.items() if k not in ("assess",)}
         r["scenarios"] = compact(c)["scenarios"]
-        r["bars_daily"] = [x[:5] for x in b["daily"]]
-        r["bars_weekly"] = b["weekly"]
+        r["bars_daily"] = [x[:5] for x in b["daily"][-60:]]
+        r["bars_weekly"] = b["weekly"][-26:]
         rows.append(r)
     for g in range(G):
         json.dump(rows[g::G], open(os.path.join(out, f"deep_{g + 1}.json"), "w", encoding="utf-8"), ensure_ascii=False)

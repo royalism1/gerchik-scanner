@@ -1,85 +1,91 @@
 {
-  "_note": "Пороги сканера. Меняет только обучение (по статистике, с предохранителями) или владелец. Каждое изменение — с причиной в changes_log.",
-  "version": 2,
-  "universe": {
-    "exchanges": [
-      "NASDAQ",
-      "NYSE"
-    ],
-    "min_price": 5.0,
-    "min_volume_day": 500000,
-    "min_avg_volume_90d": 500000,
-    "min_atr14": 0.5
-  },
-  "levels": {
-    "window_daily_bars": 126,
-    "window_weekly_bars": 26,
-    "history_weekly_bars": 52,
-    "pivot_k_daily": 3,
-    "pivot_k_weekly": 2,
-    "major_pivot_k": 10,
-    "major_pivot_move_atr": 3.0,
-    "cluster_tol_atr": 0.15,
-    "touch_tol_atr": 0.1,
-    "limit_player_tol_atr": 0.05,
-    "paranormal_tr_atr": 1.5,
-    "gap_min_atr": 0.3,
-    "historical_min_gap_bars": 20,
-    "sawing_crosses": 4,
-    "weekly_confirm_tol_atr": 0.4,
-    "round_tol_atr": 0.1
-  },
-  "near_level": {
-    "min_strength": 4,
-    "band_max_close_atr": 0.5,
-    "in_close_atr": 0.3,
-    "in_touch_close_atr": 0.5,
-    "touch_tol_atr": 0.05
-  },
-  "zones": {
-    "free_zone_days": 10,
-    "near_retest_days": 10,
-    "far_retest_days": 30
-  },
-  "output": {
-    "bars_daily": 60,
-    "bars_weekly": 26,
-    "max_for_agents": 0
-  },
-  "distance_buckets": [
-    0.1,
-    0.2,
-    0.3,
-    0.5
+ "_note": "Пороги сканера. Меняет только обучение (по статистике, с предохранителями) или владелец. Каждое изменение — с причиной в changes_log.",
+ "version": 3,
+ "universe": {
+  "exchanges": [
+   "NASDAQ",
+   "NYSE"
   ],
-  "changes_log": [
-    {
-      "version": 1,
-      "date": "2026-10-23",
-      "by": "владелец",
-      "what": "начальные пороги",
-      "why": "старт программы"
-    },
-    {
-      "version": 2,
-      "date": "2026-10-23",
-      "by": "владелец",
-      "what": "отсев кодом: заражённая зона, запас хода ≥1 ATR, минимум 3 измеримые предпосылки",
-      "why": "экономия лимитов, все кандидаты просматриваются"
-    }
-  ],
-  "assess": {
-    "free_zone_days": 10,
-    "min_room_atr": 1.0,
-    "min_premises": 3,
-    "close_extreme": 0.8,
-    "close_at_level_atr": 0.1,
-    "near_retest_days": 10,
-    "far_retest_days": 30,
-    "rel_vol": 1.5,
-    "long_run_atr": 2.0,
-    "long_run_bars": 4,
-    "far_open_atr": 0.5,
-    "far_close_atr": 0.2
+  "min_price": 5.0,
+  "min_volume_day": 500000,
+  "min_avg_volume_90d": 500000,
+  "min_atr14": 0.5
+ },
+ "levels": {
+  "window_daily_bars": 126,
+  "window_weekly_bars": 26,
+  "history_weekly_bars": 52,
+  "pivot_k_daily": 3,
+  "pivot_k_weekly": 2,
+  "major_pivot_k": 10,
+  "major_pivot_move_atr": 3.0,
+  "cluster_tol_atr": 0.15,
+  "touch_tol_atr": 0.1,
+  "limit_player_tol_atr": 0.05,
+  "paranormal_tr_atr": 1.5,
+  "gap_min_atr": 0.3,
+  "historical_min_gap_bars": 20,
+  "sawing_crosses": 4,
+  "weekly_confirm_tol_atr": 0.4,
+  "round_tol_atr": 0.1
+ },
+ "near_level": {
+  "min_strength": 4,
+  "band_max_close_atr": 0.5,
+  "in_close_atr": 0.3,
+  "in_touch_close_atr": 0.5,
+  "touch_tol_atr": 0.05
+ },
+ "zones": {
+  "free_zone_days": 10,
+  "near_retest_days": 10,
+  "far_retest_days": 30
+ },
+ "output": {
+  "bars_daily": 130,
+  "bars_weekly": 52,
+  "max_for_agents": 0
+ },
+ "distance_buckets": [
+  0.1,
+  0.2,
+  0.3,
+  0.5
+ ],
+ "changes_log": [
+  {
+   "version": 1,
+   "date": "2026-10-23",
+   "by": "владелец",
+   "what": "начальные пороги",
+   "why": "старт программы"
+  },
+  {
+   "version": 2,
+   "date": "2026-10-23",
+   "by": "владелец",
+   "what": "отсев кодом: заражённая зона, запас хода ≥1 ATR, минимум 3 измеримые предпосылки",
+   "why": "экономия лимитов, все кандидаты просматриваются"
+  },
+  {
+   "date": "2026-10-24",
+   "by": "владелец",
+   "what": "output.bars_daily 60→130, output.bars_weekly 26→52",
+   "why": "Инженеру программы нужна полная история (6 мес. дневки и год недельки), чтобы проверять исправления уровней на истории. Агентам по-прежнему отдаётся 60/26."
   }
+ ],
+ "assess": {
+  "free_zone_days": 10,
+  "min_room_atr": 1.0,
+  "min_premises": 3,
+  "close_extreme": 0.8,
+  "close_at_level_atr": 0.1,
+  "near_retest_days": 10,
+  "far_retest_days": 30,
+  "rel_vol": 1.5,
+  "long_run_atr": 2.0,
+  "long_run_bars": 4,
+  "far_open_atr": 0.5,
+  "far_close_atr": 0.2
+ }
 }

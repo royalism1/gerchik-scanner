@@ -13,6 +13,7 @@ import requests
 import yfinance as yf
 
 from levels import find_levels, near_levels, bar_features, atr14, atr_gerchik, true_range
+from assess import assess
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CFG = json.load(open(os.path.join(ROOT, "config.json"), encoding="utf-8"))
@@ -148,6 +149,7 @@ def main():
         rows.append({"ticker": t, "name": meta[t]["name"], "exchange": meta[t]["exchange"],
                      "close": round(float(d["Close"].iloc[-1]), 2), "atr14": round(a14, 2), "atr": round(atr, 2),
                      "level": main_lv, "other_near": near[1:3], **feats})
+        rows[-1]["assess"] = assess(rows[-1], CFG)
         o = CFG["output"]
         dd = d.iloc[-o["bars_daily"]:]
         w = d.resample("W-FRI").agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"}).dropna().iloc[-o["bars_weekly"]:]
@@ -213,6 +215,8 @@ def evaluate_previous(D, data):
         res.append({"ticker": r["ticker"], "level": r["level"]["price"], "type": r["level"]["type"],
                     "strength": r["level"]["strength"], "position": r["level"]["position"],
                     "dist_close_atr": r["level"]["dist_close_atr"], "in_threshold": r["level"]["in_threshold"],
+                    "stage": (r.get("assess") or {}).get("stage"),
+                    "best": {k: ((r.get("assess") or {}).get("best") or {}).get(k) for k in ("scenario", "side", "n")},
                     "up_atr": round((float(b["High"]) - c0) / atr, 2), "down_atr": round((c0 - float(b["Low"])) / atr, 2),
                     "close_atr": round((float(b["Close"]) - c0) / atr, 2), "gap_atr": round((float(b["Open"]) - c0) / atr, 2),
                     "broke_level": bool((r["level"]["position"] == "сверху" and float(b["High"]) > r["level"]["price"]) or

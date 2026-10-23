@@ -1,8 +1,11 @@
 {
   "_note": "Пороги сканера. Меняет только обучение (по статистике, с предохранителями) или владелец. Каждое изменение — с причиной в changes_log.",
-  "version": 1,
+  "version": 2,
   "universe": {
-    "exchanges": ["NASDAQ", "NYSE"],
+    "exchanges": [
+      "NASDAQ",
+      "NYSE"
+    ],
     "min_price": 5.0,
     "min_volume_day": 500000,
     "min_avg_volume_90d": 500000,
@@ -17,7 +20,7 @@
     "major_pivot_k": 10,
     "major_pivot_move_atr": 3.0,
     "cluster_tol_atr": 0.15,
-    "touch_tol_atr": 0.10,
+    "touch_tol_atr": 0.1,
     "limit_player_tol_atr": 0.05,
     "paranormal_tr_atr": 1.5,
     "gap_min_atr": 0.3,
@@ -41,10 +44,42 @@
   "output": {
     "bars_daily": 60,
     "bars_weekly": 26,
-    "max_for_agents": 60
+    "max_for_agents": 0
   },
-  "distance_buckets": [0.1, 0.2, 0.3, 0.5],
+  "distance_buckets": [
+    0.1,
+    0.2,
+    0.3,
+    0.5
+  ],
   "changes_log": [
-    {"version": 1, "date": "2026-10-23", "by": "владелец", "what": "начальные пороги", "why": "старт программы"}
-  ]
+    {
+      "version": 1,
+      "date": "2026-10-23",
+      "by": "владелец",
+      "what": "начальные пороги",
+      "why": "старт программы"
+    },
+    {
+      "version": 2,
+      "date": "2026-10-23",
+      "by": "владелец",
+      "what": "отсев кодом: заражённая зона, запас хода ≥1 ATR, минимум 3 измеримые предпосылки",
+      "why": "экономия лимитов, все кандидаты просматриваются"
+    }
+  ],
+  "assess": {
+    "free_zone_days": 10,
+    "min_room_atr": 1.0,
+    "min_premises": 3,
+    "close_extreme": 0.8,
+    "close_at_level_atr": 0.1,
+    "near_retest_days": 10,
+    "far_retest_days": 30,
+    "rel_vol": 1.5,
+    "long_run_atr": 2.0,
+    "long_run_bars": 4,
+    "far_open_atr": 0.5,
+    "far_close_atr": 0.2
+  }
 }

@@ -1,0 +1,43 @@
+name: scan
+on:
+  schedule:
+    # после закрытия NY: 20:40 UTC (летом 16:40 ET) и 21:40 UTC (зимой 16:40 ET). Лишний запуск сам пропустится.
+    - cron: "40 20 * * 1-5"
+    - cron: "40 21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Дата сессии YYYY-MM-DD (пусто — последняя)"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: scan
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run scanner
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python scan.py --date "${{ github.event.inputs.date }}"
+          else
+            python scan.py --skip-if-done
+          fi
+      - name: Commit results
+        run: |
+          git config user.name "scanner-bot"
+          git config user.email "scanner-bot@users.noreply.github.com"
+          git add results
+          git diff --cached --quiet || git commit -m "scan $(cat results/latest.json | python -c 'import sys,json;print(json.load(sys.stdin)["date"])')"
+          git pull --rebase origin ${{ github.ref_name }} || true
+          git push

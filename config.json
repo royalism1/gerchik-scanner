@@ -1,0 +1,50 @@
+{
+  "_note": "Пороги сканера. Меняет только обучение (по статистике, с предохранителями) или владелец. Каждое изменение — с причиной в changes_log.",
+  "version": 1,
+  "universe": {
+    "exchanges": ["NASDAQ", "NYSE"],
+    "min_price": 5.0,
+    "min_volume_day": 500000,
+    "min_avg_volume_90d": 500000,
+    "min_atr14": 0.5
+  },
+  "levels": {
+    "window_daily_bars": 126,
+    "window_weekly_bars": 26,
+    "history_weekly_bars": 52,
+    "pivot_k_daily": 3,
+    "pivot_k_weekly": 2,
+    "major_pivot_k": 10,
+    "major_pivot_move_atr": 3.0,
+    "cluster_tol_atr": 0.15,
+    "touch_tol_atr": 0.10,
+    "limit_player_tol_atr": 0.05,
+    "paranormal_tr_atr": 1.5,
+    "gap_min_atr": 0.3,
+    "historical_min_gap_bars": 20,
+    "sawing_crosses": 4,
+    "weekly_confirm_tol_atr": 0.4,
+    "round_tol_atr": 0.1
+  },
+  "near_level": {
+    "min_strength": 4,
+    "band_max_close_atr": 0.5,
+    "in_close_atr": 0.3,
+    "in_touch_close_atr": 0.5,
+    "touch_tol_atr": 0.05
+  },
+  "zones": {
+    "free_zone_days": 10,
+    "near_retest_days": 10,
+    "far_retest_days": 30
+  },
+  "output": {
+    "bars_daily": 60,
+    "bars_weekly": 26,
+    "max_for_agents": 60
+  },
+  "distance_buckets": [0.1, 0.2, 0.3, 0.5],
+  "changes_log": [
+    {"version": 1, "date": "2026-10-23", "by": "владелец", "what": "начальные пороги", "why": "старт программы"}
+  ]
+}

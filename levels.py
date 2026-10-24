@@ -21,10 +21,28 @@ def atr14(df):
     return float(true_range(df).iloc[-14:].mean())
 
 
-def atr_gerchik(df, a14):
-    """ATR по Герчику: среднее за 5 последних дней без паранормальных (слишком больших и слишком маленьких) баров."""
+def atr_gerchik(df, a14, L=None):
+    """ATR по Герчику: среднее за 5 последних дней без паранормальных (слишком больших и слишком маленьких) баров.
+    L — раздел levels конфига. Без новых ключей — прежний расчёт (TR, пороги 1,5/0,5, бар D включён).
+    paranormal_tr_atr / small_bar_atr — пороги «слишком большой» / «слишком маленький» бар (материал владельца: 2 и 1/3);
+    atr_mode="hl" — по материалу: среднее High−Low последних 5 дней ДО D (бар D не берётся);
+    если нормальных баров < 3 — окно расширяется до 10 дней."""
+    L = L or {}
+    big = L.get("paranormal_tr_atr", 1.5)
+    small = L.get("small_bar_atr", 0.5)
+    if L.get("atr_mode", "tr") == "hl":
+        hl = (df["High"] - df["Low"]).iloc[:-1]
+        for w in (5, 10):
+            x = hl.iloc[-w:]
+            ok = x[(x < big * a14) & (x > small * a14)]
+            if len(ok) >= 3:
+                return float(ok.iloc[-5:].mean())
+        return a14
     tr = true_range(df).iloc[-5:]
-    ok = tr[(tr <= 1.5 * a14) & (tr >= 0.5 * a14)]
+    if "small_bar_atr" in L:
+        ok = tr[(tr < big * a14) & (tr > small * a14)]
+    else:
+        ok = tr[(tr <= 1.5 * a14) & (tr >= 0.5 * a14)]
     return float(ok.mean()) if len(ok) >= 3 else a14
 
 
@@ -69,6 +87,38 @@ def is_round(price, atr, tol_atr):
     st = round_step(price)
     near = round(price / st) * st
     return abs(price - near) <= max(tol_atr * atr, 0.01), near
+
+
+def level_strength(base, mirror, lp, rnd, gap, weekly_conf, sawing, L):
+    """Итоговая сила уровня 1–7 (B, инженер 24.10): бонусы круглая/геп/неделька вместе ≤ strength_bonus_max
+    (уровень >4 этим правилом не опускается ниже 4); без зеркальности и ЛП — не выше strength_cap_no_mirror_lp;
+    программа ставит не выше strength_max_program. Без ключей в конфиге — прежний расчёт."""
+    bonus = int(rnd) + int(gap) + int(weekly_conf)
+    s = base + bonus - (2 if sawing else 0)
+    if s > 4:
+        s = max(4, min(s, base + L.get("strength_bonus_max", 3) - (2 if sawing else 0)))
+    if not (mirror or lp):
+        s = min(s, L.get("strength_cap_no_mirror_lp", 7))
+    s = min(s, L.get("strength_max_program", 7))
+    return max(1, min(7, s))
+
+
+def strict_limit_ok(H, Lo, O, C, lvl, D, atr):
+    """Строгий лимитный уровень (EN-4): ≥3 удара в одну цену (хай или верх тела для сопротивления, лой или низ тела
+    для поддержки) в пределах max(0,01$; 0,02·ATR), и после первого удара цена ни разу не прошла уровень даже на цент."""
+    tol = max(0.01, 0.02 * atr)
+    for side in ("h", "l"):
+        hits = [i for i in range(D) if
+                (side == "h" and (abs(H[i] - lvl) <= tol or abs(max(O[i], C[i]) - lvl) <= tol)) or
+                (side == "l" and (abs(Lo[i] - lvl) <= tol or abs(min(O[i], C[i]) - lvl) <= tol))]
+        if len(hits) < 3:
+            continue
+        f = hits[0]
+        if side == "h" and all(H[i] <= lvl + max(0.01, tol) for i in range(f, D)):
+            return True
+        if side == "l" and all(Lo[i] >= lvl - max(0.01, tol) for i in range(f, D)):
+            return True
+    return False
 
 
 # ---------- поиск уровней ----------
@@ -177,6 +227,8 @@ def find_levels(df, cfg):
         historical = (len(reactions) >= 2 and reactions[-1] - reactions[0] >= L["historical_min_gap_bars"]) or wk_hits >= 2
         trend_break = any(abs(p - lvl) <= tol for _, _, p in major)
         limit = any(s.startswith("limit") for s in srcs)
+        if limit and L.get("limit_strict"):
+            limit = strict_limit_ok(H, Lo, O, C, lvl, D, a14)
         para = any(s.startswith("para") for s in srcs)
         gap = "gap" in srcs
         run, best, tset = 0, 0, set(touches)
@@ -216,12 +268,7 @@ def find_levels(df, cfg):
             base = 3
         else:
             base = 2
-        s = base
-        if rnd: s += 1
-        if gap: s += 1
-        if weekly_conf and not only_weekly: s += 1
-        if sawing: s -= 2
-        s = max(1, min(7, s))
+        s = level_strength(base, mirror, lp, rnd, gap, weekly_conf and not only_weekly, sawing, L)
 
         marks = []
         if rnd: marks.append("круглая цена")
@@ -259,7 +306,7 @@ def find_levels(df, cfg):
 def near_levels(df, levels, a14, cfg):
     """Уровни силой ≥ min_strength, у которых стоит бар D. Возвращает список с признаками."""
     N, Z = cfg["near_level"], cfg["zones"]
-    atr = atr_gerchik(df, a14)
+    atr = atr_gerchik(df, a14, cfg["levels"])
     last = df.iloc[-1]
     Hd, Ld, Cd, Od = float(last["High"]), float(last["Low"]), float(last["Close"]), float(last["Open"])
     win = min(cfg["levels"]["window_daily_bars"] + 1, len(df))
@@ -310,7 +357,26 @@ def near_levels(df, levels, a14, cfg):
     return out, atr
 
 
-def bar_features(df, a14, atr, level, levels):
+def box_features(df, atr, p, max_h_atr=1.5, edge_atr=0.15):
+    """Узкая проторговка (EN-9): наибольшее N ≥ 3 последних баров (включая D), у которых High−Low всей коробки
+    ≤ max_h_atr·ATR и уровень p у края коробки (≤ edge_atr·ATR)."""
+    H, Lo = df["High"].values, df["Low"].values
+    best = None
+    for N in range(3, min(60, len(df)) + 1):
+        hi, lo = H[-N:].max(), Lo[-N:].min()
+        if hi - lo > max_h_atr * atr:
+            break
+        if min(abs(p - hi), abs(p - lo)) <= edge_atr * atr:
+            best = (N, (hi - lo) / atr, hi, lo)
+    if not best:
+        return {"box_days": 0, "box_height_atr": None, "box_edge_touches": 0}
+    N, h, hi, lo = best
+    edge = hi if abs(p - hi) <= abs(p - lo) else lo
+    touches = int(sum(1 for i in range(1, N + 1) if (abs(H[-i] - edge) <= 0.1 * atr if edge == hi else abs(Lo[-i] - edge) <= 0.1 * atr)))
+    return {"box_days": N, "box_height_atr": round(h, 2), "box_edge_touches": touches}
+
+
+def bar_features(df, a14, atr, level, levels, cfg=None):
     """Признаки последнего бара и подхода к уровню — для предпосылок."""
     last = df.iloc[-1]; prev = df.iloc[-2]
     Hd, Ld, Cd, Od = map(float, (last["High"], last["Low"], last["Close"], last["Open"]))
@@ -327,7 +393,17 @@ def bar_features(df, a14, atr, level, levels):
             break
     run_move = abs(closes[-1] - closes[-1 - run]) / atr if run else 0.0
     tr = true_range(df)
-    para_last3 = int((tr.iloc[-3:] >= 1.5 * a14).sum())
+    LL = (cfg or {}).get("levels", {})
+    para_last3 = int((tr.iloc[-3:] >= LL.get("paranormal_tr_atr", 1.5) * a14).sum())
+    # EN-6: сколько ATR пройдено за день D в сторону уровня; исключение — новый 20-дневный экстремум с закрытием у него
+    pc = float(prev["Close"])
+    day_move = ((Cd - pc) if toward_up else (pc - Cd)) / atr
+    hh20 = float(df["High"].iloc[-21:-1].max()); ll20 = float(df["Low"].iloc[-21:-1].min())
+    cpos = (Cd - Ld) / rng
+    ext_close = (Hd >= hh20 and cpos >= 0.8) if toward_up else (Ld <= ll20 and cpos <= 0.2)
+    # маленькие бары: ≥3 из последних 4 с High−Low ≤ 0,7 ATR
+    hl4 = (df["High"] - df["Low"]).values[-4:]
+    small_bars = int((hl4 <= 0.7 * atr).sum()) >= 3
     # поджатие: лои растут к сопротивлению / хаи падают к поддержке (3+ бара)
     lows, highs = df["Low"].values[-4:], df["High"].values[-4:]
     squeeze = bool(np.all(np.diff(lows) > 0)) if toward_up else bool(np.all(np.diff(highs) < 0))
@@ -347,6 +423,10 @@ def bar_features(df, a14, atr, level, levels):
         "run_bars_to_level": run,
         "run_move_atr": round(run_move, 2),
         "paranormal_last3": para_last3,
+        "day_move_atr": round(day_move, 2),
+        "ext_close": bool(ext_close),
+        "small_bars": bool(small_bars),
+        **box_features(df, atr, p),
         "squeeze": squeeze,
         "next_up": {"price": nxt_up["price"], "type": nxt_up["type"], "strength": nxt_up["strength"],
                     "room_atr": round((nxt_up["price"] - p) / atr, 2)} if nxt_up else None,

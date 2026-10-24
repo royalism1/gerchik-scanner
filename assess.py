@@ -28,6 +28,18 @@ def assess(c, cfg):
     trend_up = tr.get("above_ma20") and tr.get("ma20_over_ma50")
     trend_dn = (not tr.get("above_ma20")) and (not tr.get("ma20_over_ma50"))
     out = []
+    # EN-6: за день D уже пройдено ≥ 80% ATR к уровню (кроме нового экстремума с закрытием у него) — против пробоя
+    used = c.get("day_move_atr") or 0
+    if A.get("atr80_use_range"):  # вариант Учителя: считать и весь диапазон дня, если день шёл к уровню
+        used = max(used, c.get("range_atr") or 0) if used > 0 else used
+    atr80 = bool(A.get("atr80_rule")) and used >= A.get("atr80", 0.8) and not c.get("ext_close")
+    # EN-9: узкая проторговка у уровня
+    box = (c.get("box_days") or 0) >= 3 and (c.get("box_height_atr") or 9) <= A.get("box_max_atr", 1.5)
+    # EN-8: исключения к предпосылкам разворота (накопление, маленькие бары, ближний ретест 3–7 дн. с закрытием у уровня в своей трети)
+    own_third = (cp >= 0.67) if pos == "сверху" else (cp <= 0.33)
+    exc_breakout = bool(A.get("breakout_exceptions")) and (
+        box or c.get("small_bars") or
+        (rt is not None and 3 <= rt <= 7 and lv["dist_close_atr"] <= 0.15 and own_third))
 
     # ---- пробой ----
     b_side = "long" if pos == "сверху" else "short"
@@ -38,6 +50,8 @@ def assess(c, cfg):
         reasons.append(f"заражённая зона за уровнем ({db} дн.)")
     if not b_ok_room:
         reasons.append(f"мало запаса хода ({b_room} ATR)")
+    if atr80:
+        reasons.append(f"за день уже пройдено {c.get('day_move_atr')} ATR к уровню")
     prem = []
     if free:
         prem.append("свободная зона" + (" (исторический экстремум)" if db is None else f" {db} дн."))
@@ -55,7 +69,9 @@ def assess(c, cfg):
         prem.append(f"повышенный объём ×{c['rel_vol']}")
     if b_room is None:
         prem.append("впереди пусто (нет уровней)")
-    out.append({"scenario": "пробой", "side": b_side, "room_atr": b_room, "viable": free and b_ok_room,
+    if A.get("box_premise") and box:
+        prem.append(f"узкая проторговка {c['box_days']} дн. ({c['box_height_atr']} ATR)")
+    out.append({"scenario": "пробой", "side": b_side, "room_atr": b_room, "viable": free and b_ok_room and not atr80,
                 "reject": reasons, "premises": prem, "n": len(prem)})
 
     # ---- отбой / ЛП ----
@@ -63,6 +79,8 @@ def assess(c, cfg):
     r_room = dn_room if pos == "сверху" else up_room
     r_ok_room = r_room is None or r_room >= A["min_room_atr"]
     reasons = [] if r_ok_room else [f"мало запаса хода ({r_room} ATR)"]
+    if exc_breakout:
+        reasons.append("исключение к развороту: накопление/маленькие бары/ближний ретест у уровня")
     prem = []
     if not free:
         prem.append(f"заражённая зона за уровнем {db} дн.")
@@ -82,7 +100,7 @@ def assess(c, cfg):
         prem.append("закрытие в сторону отбоя (у " + ("хая" if r_side == "long" else "лоя") + ")")
     if (r_side == "long" and trend_up) or (r_side == "short" and trend_dn):
         prem.append("по тренду (MA20/MA50)")
-    out.append({"scenario": "отбой/ЛП", "side": r_side, "room_atr": r_room, "viable": r_ok_room,
+    out.append({"scenario": "отбой/ЛП", "side": r_side, "room_atr": r_room, "viable": r_ok_room and not exc_breakout,
                 "reject": reasons, "premises": prem, "n": len(prem)})
 
     good = [s for s in out if s["viable"] and s["n"] >= A["min_premises"]]

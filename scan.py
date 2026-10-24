@@ -145,9 +145,10 @@ def main():
         if not near:
             continue
         main_lv = near[0]
-        feats = bar_features(d, a14, atr, main_lv, lv)
+        feats = bar_features(d, a14, atr, main_lv, lv, CFG)
         rows.append({"ticker": t, "name": meta[t]["name"], "exchange": meta[t]["exchange"],
                      "close": round(float(d["Close"].iloc[-1]), 2), "atr14": round(a14, 2), "atr": round(atr, 2),
+                     "atr_method": round(atr_gerchik(d, a14), 2),  # ATR метода проверки (конституция п.3) — не меняется
                      "level": main_lv, "other_near": near[1:3], **feats})
         rows[-1]["assess"] = assess(rows[-1], CFG)
         o = CFG["output"]
@@ -210,7 +211,7 @@ def evaluate_previous(D, data):
         nxt = d[d.index > pd.Timestamp(prev)]
         if nxt.empty or nxt.index[0] > D:
             continue
-        b = nxt.iloc[0]; c0, atr = r["close"], r["atr"]
+        b = nxt.iloc[0]; c0, atr = r["close"], r.get("atr_method", r["atr"])  # проверка — всегда в ATR метода
         nsess = nxt.index[0].strftime("%Y-%m-%d")
         res.append({"ticker": r["ticker"], "level": r["level"]["price"], "type": r["level"]["type"],
                     "strength": r["level"]["strength"], "position": r["level"]["position"],

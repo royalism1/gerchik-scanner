@@ -1,6 +1,6 @@
 {
  "_note": "Пороги сканера. Меняет только обучение (по статистике, с предохранителями) или владелец. Каждое изменение — с причиной в changes_log.",
- "version": 3,
+ "version": 4,
  "universe": {
   "exchanges": [
    "NASDAQ",
@@ -27,7 +27,10 @@
   "historical_min_gap_bars": 20,
   "sawing_crosses": 4,
   "weekly_confirm_tol_atr": 0.4,
-  "round_tol_atr": 0.1
+  "round_tol_atr": 0.1,
+  "strength_bonus_max": 1,
+  "strength_cap_no_mirror_lp": 5,
+  "strength_max_program": 6
  },
  "near_level": {
   "min_strength": 4,
@@ -72,6 +75,13 @@
    "by": "владелец",
    "what": "output.bars_daily 60→130, output.bars_weekly 26→52",
    "why": "Инженеру программы нужна полная история (6 мес. дневки и год недельки), чтобы проверять исправления уровней на истории. Агентам по-прежнему отдаётся 60/26."
+  },
+  {
+   "version": 4,
+   "date": "2026-10-24",
+   "by": "инженер программы (предложение v2)",
+   "what": "сила уровня: бонусы вместе ≤ +1, без зеркальности/ЛП ≤ 5, программа ≤ 6; правило «за день пройдено ≥ 80% ATR к уровню — пробой не брать (кроме нового 20-дн. экстремума с закрытием у него)»; ATR метода проверки хранится отдельно (atr_method)",
+   "why": "проверка на 21–23.10: совпадение силы с аналитиками 24% → 55%, угадано направление 49,4% → 50,5%"
   }
  ],
  "assess": {
@@ -86,6 +96,10 @@
   "long_run_atr": 2.0,
   "long_run_bars": 4,
   "far_open_atr": 0.5,
-  "far_close_atr": 0.2
+  "far_close_atr": 0.2,
+  "atr80_rule": true,
+  "atr80": 0.8,
+  "breakout_exceptions": false,
+  "box_premise": false
  }
 }

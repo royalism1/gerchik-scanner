@@ -24,11 +24,15 @@ jobs:
         with:
           path: k
           key: audio-priv-${{ inputs.kid }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: pub-${{ inputs.kid }}
-          path: pub.pem
-          retention-days: 1
+          ref: main
+          path: repo
+      - run: mkdir -p repo/inbox && cp pub.pem repo/inbox/${{ inputs.kid }}.pub.pem
+      - name: commit
+        run: |
+          cd repo && git config user.name scanner-bot && git config user.email scanner-bot@users.noreply.github.com
+          git add inbox && git commit -m "inbox: ключ ${{ inputs.kid }}" && for i in 1 2 3 4 5; do git pull --rebase -X theirs -q && git push -q && break; sleep 5; done
   run:
     if: inputs.mode == 'run'
     runs-on: ubuntu-latest
@@ -62,10 +66,9 @@ jobs:
                   f.write(f"[{int(s.start//60):02d}:{int(s.start%60):02d}] {s.text.strip()}\n")
           print("готово, длительность", round(info.duration))
           EOF
-          openssl enc -aes-256-cbc -pbkdf2 -pass file:/tmp/aes.key -in /tmp/text.txt -out text.enc
+          openssl enc -aes-256-cbc -pbkdf2 -pass file:/tmp/aes.key -in /tmp/text.txt -out inbox/${{ inputs.kid }}.text.enc && git rm -q inbox/${{ inputs.kid }}.audio.enc inbox/${{ inputs.kid }}.key.enc
           rm -f /tmp/text.txt /tmp/audio.m4a /tmp/aes.key
-      - uses: actions/upload-artifact@v4
-        with:
-          name: text-${{ inputs.kid }}
-          path: text.enc
-          retention-days: 1
+      - name: commit
+        run: |
+          git config user.name scanner-bot && git config user.email scanner-bot@users.noreply.github.com
+          git add inbox && git commit -m "inbox: текст ${{ inputs.kid }}" && for i in 1 2 3 4 5; do git pull --rebase -X theirs -q && git push -q && break; sleep 5; done

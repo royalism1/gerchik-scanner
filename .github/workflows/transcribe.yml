@@ -1,0 +1,71 @@
+name: transcribe
+# Служебная расшифровка аудио-уроков владельца. Аудио и текст никогда не лежат в открытом виде:
+# keygen — создаёт пару ключей (закрытый ключ остаётся только в кэше Actions, публичный — в артефакте);
+# run    — расшифровывает inbox/<kid>.* , распознаёт речь (faster-whisper) и отдаёт зашифрованный текст артефактом.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "keygen | run"
+        required: true
+      kid:
+        description: "идентификатор задания"
+        required: true
+permissions:
+  contents: write
+jobs:
+  keygen:
+    if: inputs.mode == 'keygen'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p k && openssl genrsa -out k/priv.pem 4096 2>/dev/null && openssl rsa -in k/priv.pem -pubout -out pub.pem 2>/dev/null
+      - uses: actions/cache/save@v4
+        with:
+          path: k
+          key: audio-priv-${{ inputs.kid }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pub-${{ inputs.kid }}
+          path: pub.pem
+          retention-days: 1
+  run:
+    if: inputs.mode == 'run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/cache/restore@v4
+        with:
+          path: k
+          key: audio-priv-${{ inputs.kid }}
+          fail-on-cache-miss: true
+      - name: decrypt
+        run: |
+          KID="${{ inputs.kid }}"
+          openssl pkeyutl -decrypt -inkey k/priv.pem -pkeyopt rsa_padding_mode:oaep -in inbox/$KID.key.enc -out /tmp/aes.key
+          openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/tmp/aes.key -in inbox/$KID.audio.enc -out /tmp/audio.m4a
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q faster-whisper
+      - name: transcribe
+        run: |
+          python - <<'EOF'
+          from faster_whisper import WhisperModel
+          m = WhisperModel("medium", device="cpu", compute_type="int8")
+          segs, info = m.transcribe("/tmp/audio.m4a", language="ru", vad_filter=True, beam_size=5)
+          with open("/tmp/text.txt", "w", encoding="utf-8") as f:
+              for s in segs:
+                  f.write(f"[{int(s.start//60):02d}:{int(s.start%60):02d}] {s.text.strip()}\n")
+          print("готово, длительность", round(info.duration))
+          EOF
+          openssl enc -aes-256-cbc -pbkdf2 -pass file:/tmp/aes.key -in /tmp/text.txt -out text.enc
+          rm -f /tmp/text.txt /tmp/audio.m4a /tmp/aes.key
+      - uses: actions/upload-artifact@v4
+        with:
+          name: text-${{ inputs.kid }}
+          path: text.enc
+          retention-days: 1

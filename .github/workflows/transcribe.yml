@@ -60,7 +60,7 @@ jobs:
           cat > /tmp/tr.py <<'EOF'
           import subprocess, numpy as np
           from faster_whisper import WhisperModel
-          raw = subprocess.run(["ffmpeg","-nostdin","-loglevel","error","-i","/tmp/audio.m4a","-f","s16le","-ac","1","-ar","16000","-"],capture_output=True,check=True).stdout
+          raw = open("/tmp/audio.m4a","rb").read()  # уже 16 кГц моно s16le (подготовлено заранее)
           audio = np.frombuffer(raw, np.int16).astype(np.float32) / 32768.0
           m = WhisperModel("medium", device="cpu", compute_type="int8")
           segs, info = m.transcribe(audio, language="ru", vad_filter=True, beam_size=5)

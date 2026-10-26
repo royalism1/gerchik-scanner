@@ -10,6 +10,10 @@ on:
         description: "Дата сессии YYYY-MM-DD (пусто — последняя)"
         required: false
         default: ""
+      intraday:
+        description: "1 — разовый срез во время сессии"
+        required: false
+        default: ""
 permissions:
   contents: write
 concurrency:
@@ -30,7 +34,9 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run scanner
         run: |
-          if [ -n "${{ github.event.inputs.date }}" ]; then
+          if [ -n "${{ github.event.inputs.intraday }}" ]; then
+            python scan.py --intraday
+          elif [ -n "${{ github.event.inputs.date }}" ]; then
             python scan.py --date "${{ github.event.inputs.date }}"
           else
             python scan.py --skip-if-done
@@ -41,7 +47,7 @@ jobs:
           git config user.email "scanner-bot@users.noreply.github.com"
           git add results
           git diff --cached --quiet && exit 0
-          git commit -m "scan $(python -c 'import json;print(json.load(open("results/latest.json"))["date"])')"
+          git commit -m "scan $(python -c 'import json;print(json.load(open("results/latest.json"))["date"])')${{ github.event.inputs.intraday && ' intraday' || '' }}"
           for i in 1 2 3; do
             git pull --rebase -X theirs origin main && git push && exit 0
             sleep 5

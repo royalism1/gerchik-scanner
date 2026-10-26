@@ -98,10 +98,12 @@ def main():
     ap.add_argument("--date", help="YYYY-MM-DD — прогон как будто вечер этого дня")
     ap.add_argument("--limit", type=int, default=0, help="только N тикеров (для проверки)")
     ap.add_argument("--skip-if-done", action="store_true", help="не пересчитывать, если день уже посчитан")
+    ap.add_argument("--intraday", action="store_true",
+                    help="разовый срез во время сессии: D = сегодня (незавершённый бар), запись в results/intraday/<D>, без eval и latest")
     a = ap.parse_args()
     U, LV = CFG["universe"], CFG
 
-    target = session_date(a.date)
+    target = pd.Timestamp(dt.datetime.now(NY).date()) if a.intraday else session_date(a.date)
     spy = download(["SPY"], "2y")["SPY"]
     spy = spy[spy.index <= target]
     D = spy.index[-1]
@@ -123,7 +125,7 @@ def main():
         d = d[d.index <= D]
         if len(d) < 60 or d.index[-1] != D:
             continue
-        c, v = float(d["Close"].iloc[-1]), float(d["Volume"].iloc[-1])
+        c, v = float(d["Close"].iloc[-1]), float(d["Volume"].iloc[-2 if a.intraday else -1])  # внутри сессии объём дня неполный — берём вчерашний
         v90 = float(d["Volume"].iloc[-90:].mean())
         a14 = atr14(d)
         if c > U["min_price"] and v > U["min_volume_day"] and v90 > U["min_avg_volume_90d"] and a14 > U["min_atr14"]:
@@ -180,7 +182,7 @@ def main():
                    "chg_pct": round((c[-1] / c[-2] - 1) * 100, 2), "chg5_pct": round((c[-1] / c[-6] - 1) * 100, 2),
                    "above_ma20": bool(c[-1] > c[-20:].mean())})
 
-    day_dir = os.path.join(OUT, Ds)
+    day_dir = os.path.join(OUT, "intraday", Ds) if a.intraday else os.path.join(OUT, Ds)
     os.makedirs(os.path.join(day_dir, "bars"), exist_ok=True)
     summary = {"date": Ds, "made_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
                "config_version": CFG["version"], "universe": len(uni), "passed_filters": len(passed),
@@ -189,6 +191,8 @@ def main():
     for t, b in bars_out.items():
         json.dump(b, open(os.path.join(day_dir, "bars", f"{t}.json"), "w", encoding="utf-8"), ensure_ascii=False)
 
+    if a.intraday:
+        log("Срез внутри сессии сохранён:", day_dir); return
     evaluate_previous(D, full)
     json.dump({"date": Ds, "summary": f"results/{Ds}/summary.json"},
               open(os.path.join(OUT, "latest.json"), "w"), ensure_ascii=False)
